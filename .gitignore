@@ -8,4 +8,5 @@ typechain
 cache
 artifacts
 
-sqwid*
+# sqwid-app/sqwid-core
+flat-contracts
