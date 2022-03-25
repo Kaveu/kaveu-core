@@ -14,7 +14,7 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 
 	const bob = await hre.reef.getSignerByName('bob')
 	console.log('bob', await bob.getAddress(), (await bob.getBalance()).toString())
-  await bob.claimDefaultAccount();
+	await bob.claimDefaultAccount()
 	console.log('bob', await bob.getAddress(), (await bob.getBalance()).toString())
 
 	console.log('signer', await signer.getAddress(), (await signer.getBalance()).toString())
@@ -26,6 +26,9 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 const reef: ReefNetworkConfig = {
 	url: 'ws://localhost:9944',
 	gas: 'auto',
+	seeds: {
+		account1: process.env['MNEMONIC_SEED_TESTNET'] || '',
+	},
 	gasPrice: 'auto',
 	gasMultiplier: 1,
 	timeout: 10000,
@@ -33,10 +36,15 @@ const reef: ReefNetworkConfig = {
 	accounts: 'remote',
 }
 
+const reef_testnet: ReefNetworkConfig = {
+	...reef,
+	url: 'wss://rpc-testnet.reefscan.com/ws',
+}
+
 const config: HardhatUserConfig = {
 	solidity: '0.8.4',
-	defaultNetwork: 'reef',
-	networks: { reef },
+	defaultNetwork: 'reef_testnet',
+	networks: { reef, reef_testnet },
 }
 
 export default config
