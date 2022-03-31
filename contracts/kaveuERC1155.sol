@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * More info on the official website.
  *
  */
-contract KaveuERC1155 is ERC1155Supply, Ownable {
+contract kaveuERC1155 is ERC1155Supply, ERC1155Holder, Ownable {
     using Strings for uint256;
 
     // The `MAX_SUPPLY` that can be mined
@@ -32,17 +33,41 @@ contract KaveuERC1155 is ERC1155Supply, Ownable {
         }
     }
 
-    function name() public pure returns (string memory) {
+    /**
+        @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155, ERC1155Receiver) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev See {IERC721Metadata-name}.
+     */
+    function name() external pure returns (string memory) {
         string memory collection = "Kaveu";
         return collection;
     }
 
-    function uri(uint256 _tokenId) public view override returns (string memory) {
-        require(exists(_tokenId), "KaveuERC1155 : the item does not exist");
-        return string(abi.encodePacked(_baseUri, Strings.toString(_tokenId), ".json"));
+    /**
+     * @dev See {IERC721Metadata-symbol}.
+     */
+    function symbol() external pure returns (string memory) {
+        string memory symbol_ = "KVU";
+        return symbol_;
     }
 
-    function mint() public returns(uint256) {
-        
+    /**
+        @dev See {IERC1155MetadataURI-uri}.
+     */
+    function uri(uint256 _tokenId) public view override returns (string memory) {
+        require(exists(_tokenId), "KaveuERC1155: the item does not exist");
+        string memory tokenUri = string(abi.encodePacked(_baseUri, Strings.toString(_tokenId), ".json"));
+        return tokenUri;
+    }
+
+    // Set the `_baseUri' to the '_newUri'
+    function setUri(string memory _newUri) public onlyOwner {
+        _baseUri = _newUri;
+        _setURI(_newUri);
     }
 }
