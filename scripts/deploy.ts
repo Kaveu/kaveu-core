@@ -6,10 +6,11 @@ const CID = process.env["CID"];
 
 async function main() {
   const signer = await reef.getSignerByName("account1");
-  const TorumoniERC1155 = await reef.getContractFactory("TorumoniERC1155", signer);
-  console.log("Ready to deploy by", await signer.getAddress());
-  const toru = await TorumoniERC1155.deploy("ipfs://" + CID + "/");
-  console.log("TorumoniERC1155 deployed to:", (await toru.deployed()).address);
+  const kaveuERC1155 = await reef.getContractFactory("kaveuERC1155", signer);
+  const address = await signer.getAddress();
+  console.log("Ready to deploy by", address);
+  const kaveu = await kaveuERC1155.deploy("36000", address, "ipfs://" + CID + "/");
+  console.log("kaveuERC1155 deployed to:", (await kaveu.deployed()).address);
   process.exit();
 }
 
