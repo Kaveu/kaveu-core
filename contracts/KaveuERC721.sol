@@ -310,7 +310,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         for (uint256 i = 0; i < _borrower_result.length; i++) {
             ClawBorrow storage cb = _borrowers[tokenId][_borrower_result[i]];
             if (cb.assigned != AssignState.DEFAULT) {
-                uint256 requireValue = cb.totalBorrow * ((block.timestamp - cb.endAt) / DAY_IN_SECONDS) * cb.pricePerDay;
+                uint256 requireValue = (cb.totalBorrow * (((cb.endAt - block.timestamp) / DAY_IN_SECONDS) * 10) * cb.pricePerDay) / 10;
                 // refunds borrower
                 (bool success, ) = payable(cb.borrower).call{value: requireValue}("");
                 require(success, "Address: unable to send value");
