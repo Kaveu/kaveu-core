@@ -137,15 +137,19 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     struct ClawBorrow {
         uint256 startedAt;
         uint256 endAt;
+        uint256 pricePerDay;
+        uint256 totalBorrow;
+        address borrower;
         AssignState assigned;
     }
 
+    event ClawLoaning(uint256 indexed tokenId, uint256 indexed maxLoan);
     event ClawBorrowed(uint256 indexed tokenId, address indexed borrower);
 
     uint256 constant DAY_IN_SECONDS = 86400;
     mapping(uint256 => ClawLoan) private _clawLoans;
     mapping(uint256 => mapping(address => ClawBorrow)) private _borrowers;
-    address[] private claw_borrow_result;
+    address[] private _borrower_result;
 
     modifier onlyOwnerOf(uint256 tokenId) {
         require(ownerOf(tokenId) == msg.sender, "Kaveu721: you are not the owner");
@@ -155,9 +159,12 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Returns the `ClawLoan` for a `_tokenId`.
      */
-    function loanOf(uint256 _tokenId) external view returns (ClawLoan memory) {
-        ClawLoan memory cl = _clawLoans[_tokenId];
-        return cl;
+    function clawLoans() external view returns (ClawLoan[] memory) {
+        ClawLoan[] memory cls;
+        for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
+            cls[id - 1] = _clawLoans[id];
+        }
+        return cls;
     }
 
     /**
@@ -167,9 +174,9 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     function borrowOf(uint256 _tokenId) external view returns (ClawBorrow[] memory) {
         ClawBorrow[] memory cbs;
         uint256 cbsIndex = 0;
-        for (uint256 i = 0; i < claw_borrow_result.length; i++) {
-            if (_borrowers[_tokenId][claw_borrow_result[i]].assigned != AssignState.DEFAULT) {
-                cbs[cbsIndex] = _borrowers[_tokenId][claw_borrow_result[i]];
+        for (uint256 i = 0; i < _borrower_result.length; i++) {
+            if (_borrowers[_tokenId][_borrower_result[i]].assigned != AssignState.DEFAULT) {
+                cbs[cbsIndex] = _borrowers[_tokenId][_borrower_result[i]];
                 cbsIndex++;
             }
         }
@@ -177,20 +184,26 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
-     * @dev Manually assigns a `_borrower` to the `_tokenId` without paying the loan fee for 365 days.
+     * @dev Manually assigns a `_borrower` to the `_tokenId` without paying the loan fee for one year.
      * More info on website.
      */
-    function assign(uint256 _tokenId, address _borrower) external onlyOwnerOf(_tokenId) {
+    function assign(
+        uint256 _tokenId,
+        uint256 _forClaw,
+        address _borrower
+    ) external onlyOwnerOf(_tokenId) {
         ClawLoan storage cl = _clawLoans[_tokenId];
+        cl.totalBorrow += _forClaw;
         ClawBorrow storage cb = _borrowers[_tokenId][_borrower];
-        cl.totalBorrow += 1;
 
         require(cl.totalBorrow <= _claws[_tokenId] && cb.assigned == AssignState.DEFAULT, "Kaveu721: cannot assign the borrower");
 
         cb.startedAt = block.timestamp;
         cb.endAt = block.timestamp + (365 * DAY_IN_SECONDS);
+        cb.totalBorrow += _forClaw;
+        cb.borrower = msg.sender;
         cb.assigned = AssignState.BY_OWNER;
-        claw_borrow_result.push(_borrower);
+        _borrower_result.push(_borrower);
 
         emit ClawBorrowed(_tokenId, _borrower);
     }
@@ -198,24 +211,27 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Deassigns a `_borrower` who has already been manually assigned from the `_tokenId`.
      */
-    function deassign(uint256 _tokenId, address _borrower) external onlyOwnerOf(_tokenId) {
+    function deassign(
+        uint256 _tokenId,
+        uint256 _forClaw,
+        address _borrower
+    ) external onlyOwnerOf(_tokenId) {
         ClawLoan storage cl = _clawLoans[_tokenId];
-        cl.totalBorrow -= 1;
+        cl.totalBorrow -= _forClaw;
+        ClawBorrow storage cb = _borrowers[_tokenId][_borrower];
+        cb.totalBorrow -= _forClaw;
 
-        require(_borrowers[_tokenId][_borrower].assigned == AssignState.BY_OWNER, "Kaveu721: cannot deassign the borrower");
-        uint256[] memory array;
-        uint256 arrayIndex = 0;
-        uint256 i;
-        for (i = 0; i < claw_borrow_result.length; i++) {
-            if (claw_borrow_result[i] == _borrower) {
-                array[arrayIndex] = i;
-                arrayIndex++;
-                delete _borrowers[_tokenId][_borrower];
-                break;
+        require(cb.assigned == AssignState.BY_OWNER, "Kaveu721: cannot deassign the borrower");
+
+        if (cb.totalBorrow == 0) {
+            // cleanUp
+            for (uint256 i = 0; i < _borrower_result.length; i++) {
+                if (_borrower_result[i] == _borrower) {
+                    delete _borrowers[_tokenId][_borrower];
+                    delete _borrower_result[i];
+                    break;
+                }
             }
-        }
-        for (i = 0; i < array.length; i++) {
-            delete claw_borrow_result[array[i]];
         }
     }
 
@@ -227,23 +243,9 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         ClawLoan storage cl = _clawLoans[_tokenId];
         cl.pricePerDay = _pricePerDay;
         cl.maxLoan = _maxLoan;
-        require(cl.totalBorrow <= cl.maxLoan && cl.maxLoan <= _claws[_tokenId], "Kaveu721: cannot create loan");
-    }
+        require(_maxLoan <= _claws[_tokenId], "Kaveu721: cannot create loan");
 
-    function cleanUp(uint256 _tokenId) external onlyOwnerOf(_tokenId) {
-        uint256[] memory array;
-        uint256 arrayIndex = 0;
-        uint256 i;
-        for (i = 0; i < claw_borrow_result.length; i++) {
-            if (_borrowers[_tokenId][claw_borrow_result[i]].endAt < block.timestamp) {
-                array[arrayIndex] = i;
-                arrayIndex++;
-                delete _borrowers[_tokenId][claw_borrow_result[i]];
-            }
-        }
-        for (i = 0; i < array.length; i++) {
-            delete claw_borrow_result[array[i]];
-        }
+        emit ClawLoaning(_tokenId, _maxLoan);
     }
 
     function borrow(
@@ -252,26 +254,71 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         uint256 _forDays,
         address _borrower
     ) external payable {
-        /* ClawLoan storage cl = _clawLoans[_tokenId];
+        ClawLoan storage cl = _clawLoans[_tokenId];
         cl.totalBorrow += _forClaw;
-
         ClawBorrow storage cb = _borrowers[_tokenId][_borrower];
 
-        if (cb.assigned == AssignState.DEFAULT) {
-            cb.startedAt = block.timestamp;
-            cb.endAt = block.timestamp + (_forDays * DAY_IN_SECONDS);
-        }
+        require(_forDays > 0 && _forClaw <= cl.maxLoan && cl.totalBorrow <= _claws[_tokenId] && cb.assigned == AssignState.DEFAULT, "Kaveu721: cannot borrow");
 
-        require(cl.totalBorrow <= cl.maxLoan && cl.maxLoan <= _claws[_tokenId], "Kaveu721: cannot create loan");
+        cb.startedAt = block.timestamp;
+        cb.endAt = block.timestamp + (_forDays * DAY_IN_SECONDS);
+        cb.totalBorrow += _forClaw;
+        cb.pricePerDay = cl.pricePerDay;
+        cb.borrower = msg.sender;
+        cb.assigned = AssignState.BY_BORROWER;
+        _borrower_result.push(_borrower);
 
         // pays loan fee
         require(msg.value >= _forClaw * _forDays * cl.pricePerDay, "Kaveu721: not enought token");
         (bool success, ) = payable(ownerOf(_tokenId)).call{value: msg.value}("");
         require(success, "Address: unable to send value");
 
-        cb.assigned = AssignState.BY_BORROWER;
-        claw_borrow_result.push(_borrower);
+        emit ClawBorrowed(_tokenId, _borrower);
+    }
 
-        emit ClawBorrowed(_tokenId, _borrower); */
+    function cleanUp() public {
+        uint256[] memory array;
+        uint256 arrayIndex = 0;
+        for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
+            for (uint256 i = 0; i < _borrower_result.length; i++) {
+                if (_borrowers[id][_borrower_result[i]].assigned != AssignState.DEFAULT && _borrowers[id][_borrower_result[i]].endAt < block.timestamp) {
+                    array[arrayIndex] = i;
+                    arrayIndex++;
+                    delete _borrowers[id][_borrower_result[i]];
+                }
+            }
+        }
+        for (uint256 i = 0; i < array.length; i++) {
+            delete _borrower_result[array[i]];
+        }
+    }
+
+    /**
+     * @dev Check that there are no refunds to be made prior to the transfer. If there is, a refund is required.
+     * More info on website.
+     */
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual override {
+        if (from == address(0)) {
+            return;
+        }
+        cleanUp();
+
+        for (uint256 i = 0; i < _borrower_result.length; i++) {
+            ClawBorrow storage cb = _borrowers[tokenId][_borrower_result[i]];
+            if (cb.assigned != AssignState.DEFAULT) {
+                uint256 requireValue = cb.totalBorrow * ((block.timestamp - cb.endAt) / DAY_IN_SECONDS) * cb.pricePerDay;
+                // refunds borrower
+                (bool success, ) = payable(cb.borrower).call{value: requireValue}("");
+                require(success, "Address: unable to send value");
+
+                cb.endAt = block.timestamp - 10;
+            }
+        }
+
+        cleanUp();
     }
 }
