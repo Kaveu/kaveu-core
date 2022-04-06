@@ -31,6 +31,11 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     // Total claws with a given id
     mapping(uint256 => uint256) private _claws;
 
+    modifier existToken(uint256 tokenId) {
+        require(_exists(tokenId), "KaveuERC721: the token does not exist");
+        _;
+    }
+
     constructor(
         uint256 priceClaws_,
         address safeAddress_,
@@ -89,8 +94,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Returns the number of claws of the `_tokenId`.
      */
-    function clawsOf(uint256 _tokenId) public view returns (uint256) {
-        require(_exists(_tokenId), "KaveuERC721: the token does not exist");
+    function clawsOf(uint256 _tokenId) public view existToken(_tokenId) returns (uint256) {
         return _claws[_tokenId];
     }
 
@@ -99,8 +103,8 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * The `sender` must be the `owner` of the token and the `_tokenId` must be greater than 1.
      * Decreases claws does not exist.
      */
-    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable {
-        require(msg.value >= _incBy * priceClaws && ownerOf(_tokenId) == msg.sender && _tokenId > 1, "KaveuERC721: unable to increase the token");
+    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) {
+        require(msg.value >= _incBy * priceClaws && _tokenId > 1, "KaveuERC721: unable to increase the token");
         _claws[_tokenId] += _incBy;
     }
 
@@ -157,7 +161,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * @dev Returns the {ClawBorrow} for a `_tokenId`. The bot uses this function to check if a borrower is allowed to use the bot.
      * More info on website.
      */
-    function borrowOf(uint256 _tokenId) external view returns (ClawBorrow[] memory) {
+    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (ClawBorrow[] memory) {
         ClawBorrow[] memory cbs;
         uint256 cbsIndex = 0;
         for (uint256 i = 0; i < _borrower_result.length; i++) {
@@ -239,7 +243,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         uint256 _forClaw,
         uint256 _forDays,
         address _borrower
-    ) external payable {
+    ) external payable existToken(_tokenId) {
         ClawLoan memory cl = _clawLoans[_tokenId];
         cl.totalBorrow += _forClaw;
         ClawBorrow memory cb = _borrowers[_tokenId][_borrower];
