@@ -55,9 +55,15 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev See {IERC721Metadata-tokenURI}.
      */
-    function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
+    function tokenURI(uint256 _tokenId) public view virtual override existToken(_tokenId) returns (string memory) {
         return string(abi.encodePacked(_baseUri, _tokenId.toString(), ".json"));
+    }
+
+    /**
+     * @dev Returns the number of claws of the `_tokenId`.
+     */
+    function clawsOf(uint256 _tokenId) public view existToken(_tokenId) returns (uint256) {
+        return _claws[_tokenId];
     }
 
     /**
@@ -84,18 +90,18 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
+     * @dev Returns the balance of the contract.
+     */
+    function balance() external returns(uint256) {
+        return address(this).balance;
+    }
+
+    /**
      * @dev See {Address-sendValue}.
      */
     function withdraw() external onlyOwner {
         (bool success, ) = payable(_safeAddress).call{value: address(this).balance}("");
         require(success, "Address: unable to send value");
-    }
-
-    /**
-     * @dev Returns the number of claws of the `_tokenId`.
-     */
-    function clawsOf(uint256 _tokenId) public view existToken(_tokenId) returns (uint256) {
-        return _claws[_tokenId];
     }
 
     /**
@@ -142,7 +148,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     address[] private _borrower_result;
 
     modifier onlyOwnerOf(uint256 tokenId) {
-        require(ownerOf(tokenId) == msg.sender, "Kaveu721: you are not the owner");
+        require(ownerOf(tokenId) == msg.sender, "KaveuERC721: you are not the owner");
         _;
     }
 
@@ -185,7 +191,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         ClawBorrow memory cb = _borrowers[_tokenId][_borrower];
         cb.totalAssign += _forClaw;
 
-        require(cb.totalAssign <= _claws[_tokenId] && cb.assignState == AssignState.DEFAULT, "Kaveu721: cannot assign the borrower");
+        require(cb.totalAssign <= _claws[_tokenId] && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot assign the borrower");
 
         cb.deadline = (2 ^ 256) - 1; // forever
         cb.assignState = AssignState.BY_OWNER;
@@ -207,7 +213,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         ClawBorrow storage cb = _borrowers[_tokenId][_borrower];
         cb.totalAssign -= _forClaw;
 
-        require(cb.assignState == AssignState.BY_OWNER, "Kaveu721: cannot deassign the borrower");
+        require(cb.assignState == AssignState.BY_OWNER, "KaveuERC721: cannot deassign the borrower");
 
         if (cb.totalAssign == 0) {
             // clear
@@ -248,7 +254,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         cl.totalBorrow += _forClaw;
         ClawBorrow memory cb = _borrowers[_tokenId][_borrower];
 
-        require(cl.pricePerDay > 0 && cl.totalBorrow <= _claws[_tokenId] && cb.assignState == AssignState.DEFAULT, "Kaveu721: cannot borrow");
+        require(cl.pricePerDay > 0 && cl.totalBorrow <= _claws[_tokenId] && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot borrow");
 
         cb.deadline = block.timestamp + (_forDays * DAY_IN_SECONDS);
         cb.totalAmount = _forClaw * _forDays * cl.pricePerDay;
@@ -262,7 +268,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         _borrower_result.push(_borrower);
 
         // pays loan fee
-        require(msg.value >= cb.totalAmount, "Kaveu721: not enought token");
+        require(msg.value >= cb.totalAmount, "KaveuERC721: not enought token");
         (bool success, ) = payable(ownerOf(_tokenId)).call{value: msg.value}("");
         require(success, "Address: unable to send value");
 

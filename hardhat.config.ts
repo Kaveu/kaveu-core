@@ -1,17 +1,42 @@
 import * as dotenv from "dotenv";
 
-import { task, HardhatUserConfig } from "hardhat/config";
+import { /* task, */ HardhatUserConfig } from "hardhat/config";
 import "@reef-defi/hardhat-reef";
 import { ReefNetworkConfig } from "@reef-defi/hardhat-reef/dist/src/types";
-import { TransactionReceipt, TransactionResponse } from "@ethersproject/abstract-provider";
+// import { TransactionReceipt, TransactionResponse } from "@ethersproject/abstract-provider";
 
 dotenv.config();
 
-const MNEMONIC = process.env["MNEMONIC_SEED_TESTNET"];
+const seeds = {
+  account1: process.env["MNEMONIC_SEED_TESTNET_1"] || "",
+  account2: process.env["MNEMONIC_SEED_TESTNET_2"] || "",
+};
 
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+const reef: ReefNetworkConfig = {
+  url: "ws://localhost:9944",
+  gas: "auto",
+  seeds,
+  gasPrice: "auto",
+  gasMultiplier: 1,
+  timeout: 10000,
+  httpHeaders: {},
+  accounts: "remote",
+};
+
+const reef_testnet: ReefNetworkConfig = {
+  ...reef,
+  url: "wss://rpc-testnet.reefscan.com/ws",
+};
+
+const config: HardhatUserConfig = {
+  solidity: "0.8.4",
+  defaultNetwork: "reef_testnet",
+  networks: { reef, reef_testnet },
+};
+
+export default config;
+
+/* task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const [signer] = await hre.reef.getSigners();
   await signer.claimDefaultAccount();
 
@@ -133,33 +158,4 @@ task("decode1", "Decode events", async (_, hre) => {
   console.log(decode.id.toString());
 
   process.exit(0);
-});
-
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
-const reef: ReefNetworkConfig = {
-  url: "ws://localhost:9944",
-  gas: "auto",
-  seeds: {
-    account1: MNEMONIC || "",
-  },
-  gasPrice: "auto",
-  gasMultiplier: 1,
-  timeout: 10000,
-  httpHeaders: {},
-  accounts: "remote",
-};
-
-const reef_testnet: ReefNetworkConfig = {
-  ...reef,
-  url: "wss://rpc-testnet.reefscan.com/ws",
-};
-
-const config: HardhatUserConfig = {
-  solidity: "0.8.4",
-  defaultNetwork: "reef_testnet",
-  networks: { reef, reef_testnet },
-};
-
-export default config;
+}); */
