@@ -14,6 +14,8 @@ use(solidity);
 describe("Test Contract KaveuERC721", function () {
   let signer1: ProxySigner;
   let signer2: ProxySigner;
+  let addr1: string;
+  let addr2: string;
   let kaveu: Contract;
   let kaveu2: Contract;
   let reef20: Contract;
@@ -22,6 +24,8 @@ describe("Test Contract KaveuERC721", function () {
 
   before(async () => {
     [signer1, signer2] = await reef.getSigners();
+    addr1 = await signer1.getAddress();
+    addr2 = await signer2.getAddress();
 
     // deploy
     // const KaveuERC721 = await reef.getContractFactory("KaveuERC721", signer1);
@@ -29,7 +33,10 @@ describe("Test Contract KaveuERC721", function () {
     // kaveu = await KaveuERC721.deploy(utils.parseEther("3"), address2, uri_);
     // kaveu = await kaveu.deployed();
 
-    kaveu = await reef.getContractAt("KaveuERC721", "0xA13ac3411CFb490E5B3026a1C8ce8a573d62d1EE", signer1);
+    // or that
+    kaveu = await reef.getContractAt("KaveuERC721", "0xcc2b483930bfbf3f2d1dbbd0365d80c4ddca88fe", signer1);
+
+    // leave me
     kaveu2 = await reef.getContractAt("KaveuERC721", kaveu.address, signer2);
     reef20 = await reef.getContractAt("IERC20", "0x0000000000000000000000000000000001000000", signer1);
   });
@@ -90,36 +97,33 @@ describe("Test Contract KaveuERC721", function () {
   //   expect(await kaveu.clawsOf(34)).to.equal(2 + (7 - 2 - 1));
   // });
 
-  // it("increaseClaws", async () => {
-  //   const priceClaws: BigNumber = await kaveu.priceClaws();
-  //   const incBy_ = BigNumber.from(2);
-  //   const totalCost = priceClaws.mul(incBy_);
-  //   const clawsOf2: BigNumber = await kaveu.clawsOf(2);
+  describe("increase & withdraw", async () => {
+    it("increaseClaws", async () => {
+      const priceClaws: BigNumber = await kaveu.priceClaws();
+      const incBy_ = BigNumber.from(2);
+      const totalCost = priceClaws.mul(incBy_);
+      const clawsOf2: BigNumber = await kaveu.clawsOf(2);
 
-  //   await expect(kaveu.increaseClaws(2, incBy_, { value: totalCost })).to.be.revertedWith("KaveuERC721: you are not the owner");
-  //   await expect(kaveu2.increaseClaws(1, incBy_, { value: totalCost })).to.be.revertedWith("KaveuERC721: unable to increase the token");
+      await expect(kaveu.increaseClaws(2, incBy_, { value: totalCost })).to.be.revertedWith("KaveuERC721: you are not the owner");
+      await expect(kaveu2.increaseClaws(1, incBy_, { value: totalCost })).to.be.revertedWith("KaveuERC721: unable to increase the token");
 
-  //   let tx: TransactionResponse = await kaveu2.increaseClaws(2, incBy_, { value: totalCost });
-  //   await tx.wait(2);
-  //   expect(await kaveu.clawsOf(2)).to.equal(incBy_.add(clawsOf2));
-  // });
+      let tx: TransactionResponse = await kaveu2.increaseClaws(2, incBy_, { value: totalCost });
+      await tx.wait(2);
+      expect(await kaveu.clawsOf(2)).to.equal(incBy_.add(clawsOf2));
+    });
 
-  it("withdraw", async () => {
-    const addr = await signer2.getAddress();
-    let balanceOfSigner: BigNumber = await reef20.balanceOf(addr);
-    let balanceOfKaveu: BigNumber = await kaveu.balance();
+    it("withdraw", async () => {
+      let balanceOfSigner: BigNumber = await reef20.balanceOf(addr2);
+      let balanceOfKaveu: BigNumber = await kaveu.balance();
 
-    console.log(balanceOfKaveu);
-    console.log(balanceOfKaveu.toString());
-    
-
-    // await expect(kaveu2.withdraw()).to.be.revertedWith("Ownable: caller is not the owner");
-    // let tx: TransactionResponse = await kaveu.withdraw();
-    // await tx.wait(2);
-    // // expect(await reef20.balanceOf(addr)).to.equal(balanceOfSigner.add(balanceOf));
-    // console.log("before", balanceOfKaveu.toString(), balanceOfSigner.toString());
-    // balanceOfKaveu = await kaveu.balance();
-    // balanceOfSigner = await reef20.balanceOf(addr);
-    // console.log("after", balanceOfKaveu.toString(), balanceOfSigner.toString());
+      await expect(kaveu2.withdraw()).to.be.revertedWith("Ownable: caller is not the owner");
+      let tx: TransactionResponse = await kaveu.withdraw();
+      await tx.wait(2);
+      expect(await reef20.balanceOf(addr2)).to.gt(balanceOfSigner);
+      console.log("before", balanceOfKaveu.toString(), balanceOfSigner.toString());
+      balanceOfKaveu = await kaveu.balance();
+      balanceOfSigner = await reef20.balanceOf(addr2);
+      console.log("after", balanceOfKaveu.toString(), balanceOfSigner.toString());
+    });
   });
 });

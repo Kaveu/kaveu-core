@@ -92,7 +92,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Returns the balance of the contract.
      */
-    function balance() external returns(uint256) {
+    function balance() external view returns (uint256) {
         return address(this).balance;
     }
 
@@ -152,11 +152,15 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         _;
     }
 
+    function test() external view returns (ClawLoan memory) {
+        return _clawLoans[2];
+    }
+
     /**
      * @dev Returns all {ClawLoan}.
      */
-    function clawLoans() external view returns (ClawLoan[] memory) {
-        ClawLoan[] memory cls;
+    function clawLoans() external view returns (ClawLoan[] memory cls) {
+        cls = new ClawLoan[](MAX_SUPPLY);
         for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
             cls[id - 1] = _clawLoans[id];
         }
@@ -164,19 +168,15 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
-     * @dev Returns the {ClawBorrow} for a `_tokenId`. The bot uses this function to check if a borrower is allowed to use the bot.
+     * @dev Returns all {ClawBorrow} for a `_tokenId`. The bot uses this function to check if a borrower is allowed to use the bot.
      * More info on website.
      */
-    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (ClawBorrow[] memory) {
-        ClawBorrow[] memory cbs;
-        uint256 cbsIndex = 0;
-        for (uint256 i = 0; i < _borrower_result.length; i++) {
-            if (_borrowers[_tokenId][_borrower_result[i]].assignState != AssignState.DEFAULT) {
-                cbs[cbsIndex] = _borrowers[_tokenId][_borrower_result[i]];
-                cbsIndex++;
-            }
+    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (ClawBorrow[] memory cbs) {
+        uint256 ln = _borrower_result.length;
+        cbs = new ClawBorrow[](ln);
+        for (uint256 i = 0; i < ln; i++) {
+            cbs[i] = _borrowers[_tokenId][_borrower_result[i]];
         }
-        return cbs;
     }
 
     /**
@@ -279,8 +279,9 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * @dev Clears the {ClawBorrow} if the `ClawBorrow.deadline` is reached. Anyone can call this function.
      */
     function clear() external {
-        uint256[] memory array;
-        uint256 arrayIndex = 0;
+        uint256 ln = _borrower_result.length;
+        uint256[] memory array = new uint256[](ln);
+        uint256 counter = 0;
         uint256 i;
         for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
             for (i = 0; i < _borrower_result.length; i++) {
@@ -288,13 +289,13 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
                 if (cb.assignState != AssignState.DEFAULT && cb.deadline < block.timestamp) {
                     ClawLoan storage cl = _clawLoans[id];
                     cl.totalBorrow -= cb.totalBorrow;
-                    array[arrayIndex] = i;
-                    arrayIndex++;
+                    array[counter] = i;
+                    counter++;
                     delete _borrowers[id][_borrower_result[i]];
                 }
             }
         }
-        for (i = 0; i < array.length; i++) {
+        for (i = 0; i < counter; i++) {
             delete _borrower_result[array[i]];
         }
     }
