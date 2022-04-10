@@ -1,14 +1,14 @@
 // import { config } from "dotenv";
 // config();
-import { reef } from "hardhat";
+import { ethers } from "hardhat";
 // import { utils, Contract, BigNumber } from "ethers";
 // import { TransactionReceipt, TransactionResponse } from "@ethersproject/abstract-provider";
 
 // const uri_ = "ipfs://" + process.env["CID"] + "/";
 
 async function main() {
-  const [signer1, _signer2] = await reef.getSigners();
-  const kaveu = await reef.getContractAt("KaveuERC721", "0x88DCF646cf43816A72C2Eb849B2594070a40006F", signer1);
+  const [signer1] = await ethers.getSigners();
+  const kaveu = await ethers.getContractAt("KaveuERC721", "0xb257626a6C95a6540eDdeE822f78fEd2CD5A455a", signer1);
 
   const test = await kaveu.test();
   console.log("test", test);

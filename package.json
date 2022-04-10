@@ -1,10 +1,6 @@
 {
-  "name": "hardhat-project",
+  "name": "kaveu-core",
   "license": "MIT",
-  "dependencies": {
-    "@reef-defi/hardhat-reef": "^1.0.10",
-    "remove": "^0.1.5"
-  },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-etherscan": "^3.0.3",
@@ -22,6 +18,7 @@
     "ts-node": "^10.7.0"
   },
   "scripts": {
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "test": "hardhat test"
   }
 }

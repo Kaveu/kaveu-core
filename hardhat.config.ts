@@ -1,13 +1,29 @@
-import * as dotenv from "dotenv";
+import { config } from "dotenv";
+config();
 
-import { /* task, */ HardhatUserConfig } from "hardhat/config";
-import "@reef-defi/hardhat-reef";
-import { ReefNetworkConfig } from "@reef-defi/hardhat-reef/dist/src/types";
-// import { TransactionReceipt, TransactionResponse } from "@ethersproject/abstract-provider";
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomiclabs/hardhat-ethers";
 
-dotenv.config();
+const PK_MUMBAI_0 = process.env["PK_MUMBAI_0"] || "";
+const PK_MUMBAI_1 = process.env["PK_MUMBAI_1"] || "";
 
-const seeds = {
+const accounts = [PK_MUMBAI_0, PK_MUMBAI_1];
+
+const mumbai = {
+  chainId: 80001,
+  url: process.env["HTTPS_MUMBAI"] || "",
+  accounts,
+};
+
+const hreConfig: HardhatUserConfig = {
+  solidity: "0.8.4",
+  defaultNetwork: "mumbai",
+  networks: { mumbai },
+};
+
+export default hreConfig;
+
+/* const seeds = {
   account1: process.env["MNEMONIC_SEED_TESTNET_1"] || "",
   account2: process.env["MNEMONIC_SEED_TESTNET_2"] || "",
 };
@@ -26,15 +42,7 @@ const reef: ReefNetworkConfig = {
 const reef_testnet: ReefNetworkConfig = {
   ...reef,
   url: "wss://rpc-testnet.reefscan.com/ws",
-};
-
-const config: HardhatUserConfig = {
-  solidity: "0.8.4",
-  defaultNetwork: "reef_testnet",
-  networks: { reef, reef_testnet },
-};
-
-export default config;
+}; */
 
 /* task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const [signer] = await hre.reef.getSigners();

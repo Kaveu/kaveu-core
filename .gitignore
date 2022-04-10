@@ -7,6 +7,3 @@ typechain
 #Hardhat files
 cache
 artifacts
-
-# sqwid-app/sqwid-core
-flat-contracts

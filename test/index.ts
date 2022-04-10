@@ -1,9 +1,9 @@
 import { config } from "dotenv";
 config();
 import { expect, use } from "chai";
-import { reef } from "hardhat";
+import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
-import { ProxySigner } from "@reef-defi/hardhat-reef/src/proxies/signers/ProxySigner";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { utils, Contract, BigNumber } from "ethers";
 import { TransactionReceipt, TransactionResponse } from "@ethersproject/abstract-provider";
 
@@ -12,8 +12,8 @@ const uri_ = "ipfs://" + process.env["CID"] + "/";
 use(solidity);
 
 describe("Test Contract KaveuERC721", function () {
-  let signer1: ProxySigner;
-  let signer2: ProxySigner;
+  let signer1: SignerWithAddress;
+  let signer2: SignerWithAddress;
   let addr1: string;
   let addr2: string;
   let kaveu: Contract;
@@ -23,22 +23,24 @@ describe("Test Contract KaveuERC721", function () {
   this.timeout(100 * 10 ** 3);
 
   before(async () => {
-    [signer1, signer2] = await reef.getSigners();
-    addr1 = await signer1.getAddress();
-    addr2 = await signer2.getAddress();
+    [signer1, signer2] = await ethers.getSigners();
+    addr1 = signer1.address;
+    addr2 = signer2.address;
 
+    
     // deploy
-    // const KaveuERC721 = await reef.getContractFactory("KaveuERC721", signer1);
+    // const KaveuERC721 = await ethers.getContractFactory("KaveuERC721", signer1);
     // const address2 = await signer2.getAddress();
     // kaveu = await KaveuERC721.deploy(utils.parseEther("3"), address2, uri_);
     // kaveu = await kaveu.deployed();
 
     // or that
-    kaveu = await reef.getContractAt("KaveuERC721", "0xcc2b483930bfbf3f2d1dbbd0365d80c4ddca88fe", signer1);
+    kaveu = await ethers.getContractAt("KaveuERC721", "0xb257626a6C95a6540eDdeE822f78fEd2CD5A455a", signer1);
 
     // leave me
-    kaveu2 = await reef.getContractAt("KaveuERC721", kaveu.address, signer2);
-    reef20 = await reef.getContractAt("IERC20", "0x0000000000000000000000000000000001000000", signer1);
+    kaveu2 = await ethers.getContractAt("KaveuERC721", kaveu.address, signer2);
+    // signer1.getBalance("latest")
+    reef20 = await ethers.getContractAt("IERC20", "0x0000000000000000000000000000000001000000", signer1);
   });
 
   // it("name, symbol & priceClaws", async () => {

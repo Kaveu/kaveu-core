@@ -21,7 +21,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     using Strings for uint256;
 
     // The `MAX_SUPPLY` that can be mined
-    uint256 public constant MAX_SUPPLY = 34;
+    uint256 public constant MAX_SUPPLY = 5;
     // The price of claw
     uint256 public priceClaws;
     // The safe address to withdraw or to sell tokens
@@ -50,6 +50,13 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
             _mint(_safeAddress, id);
         }
         _claws[1] = 721;
+    }
+
+    /**
+     * @dev Returns the `MAX_SUPPLY`.
+     */
+    function totalSupply() public view returns (uint256) {
+        return MAX_SUPPLY;
     }
 
     /**
