@@ -8,7 +8,7 @@ import { ethers } from "hardhat";
 
 async function main() {
   const [signer1] = await ethers.getSigners();
-  const kaveu = await ethers.getContractAt("KaveuERC721", "0xb257626a6C95a6540eDdeE822f78fEd2CD5A455a", signer1);
+  const kaveu = await ethers.getContractAt("KaveuERC721", "0xD9cb97E7510C959cf5a589DA0E55b45EDb50f553", signer1);
 
   const test = await kaveu.test();
   console.log("test", test);

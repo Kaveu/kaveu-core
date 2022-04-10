@@ -15,7 +15,8 @@
     "hardhat": "^2.9.1",
     "prettier": "^2.6.1",
     "prettier-plugin-solidity": "^1.0.0-beta.19",
-    "ts-node": "^10.7.0"
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.3"
   },
   "scripts": {
     "compile": "hardhat compile",

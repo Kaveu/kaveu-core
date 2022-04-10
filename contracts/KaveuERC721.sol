@@ -55,7 +55,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Returns the `MAX_SUPPLY`.
      */
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public pure returns (uint256) {
         return MAX_SUPPLY;
     }
 
@@ -159,10 +159,6 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         _;
     }
 
-    function test() external view returns (ClawLoan memory) {
-        return _clawLoans[2];
-    }
-
     /**
      * @dev Returns all {ClawLoan}.
      */
@@ -186,6 +182,11 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         }
     }
 
+    function removeBorrower(uint256 index) private {
+        _borrower_result[index] = _borrower_result[_borrower_result.length - 1];
+        _borrower_result.pop();
+    }
+
     /**
      * @dev Manually assigns a `_borrower` once to the `_tokenId` without paying the loan fee.
      * More info on website.
@@ -200,8 +201,10 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
 
         require(cb.totalAssign <= _claws[_tokenId] && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot assign the borrower");
 
-        cb.deadline = (2 ^ 256) - 1; // forever
+        cb.deadline = block.timestamp + (31536000 * 721); // forever
         cb.assignState = AssignState.BY_OWNER;
+        cb.caller = msg.sender;
+        cb.borrower = _borrower;
 
         _borrowers[_tokenId][_borrower] = cb;
         _borrower_result.push(_borrower);
@@ -227,7 +230,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
             for (uint256 i = 0; i < _borrower_result.length; i++) {
                 if (_borrower_result[i] == _borrower) {
                     delete _borrowers[_tokenId][_borrower];
-                    delete _borrower_result[i];
+                    removeBorrower(i);
                     break;
                 }
             }
@@ -303,7 +306,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
             }
         }
         for (i = 0; i < counter; i++) {
-            delete _borrower_result[array[i]];
+            removeBorrower(array[i]);
         }
     }
 
