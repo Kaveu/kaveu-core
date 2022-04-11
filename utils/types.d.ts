@@ -1,22 +1,23 @@
 import type { BigNumber } from "ethers";
 
-export type ClawLoan = {
-  pricePerDay: BigNumber;
-  totalBorrow: BigNumber;
-};
-
 declare enum AssignState {
   DEFAULT,
   BY_OWNER,
   BY_BORROWER,
 }
 
-export type ClawBorrow = {
+export type BorrowData = {
   deadline: BigNumber;
   totalAmount: BigNumber;
   totalBorrow: BigNumber;
-  totalAssign: BigNumber;
   caller: string;
   borrower: string;
   assignState: AssignState;
+};
+
+export type Claw = {
+  pricePerDay: BigNumber;
+  totalBorrow: BigNumber;
+  totalAssign: BigNumber;
+  totalClaw: BigNumber;
 };
