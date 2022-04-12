@@ -4,15 +4,17 @@ import { ethers } from "hardhat";
 import { utils } from "ethers";
 
 const uri_ = "ipfs://" + process.env["CID"] + "/";
+const priceClawsEther = utils.parseEther("0.001");
 
 async function main() {
-  const [signer1, signer2] = await ethers.getSigners();
-  const KaveuERC721 = await ethers.getContractFactory("KaveuERC721", signer1);
-  console.log("Ready to deploy by", signer1.address);
+  const [sgn1, sgn2] = await ethers.getSigners();
 
-  const kaveu = await KaveuERC721.deploy(utils.parseEther("3"), signer2.address, uri_);
-  const kaveuAddress = (await kaveu.deployed()).address;
-  console.log("KaveuERC721 deployed to:", kaveuAddress);
+  // deploy new contract
+  console.log("KaveuERC721 ready to deploy by", sgn1.address);
+  const KaveuERC721 = await ethers.getContractFactory("KaveuERC721", sgn1);
+  let kaveu = await KaveuERC721.deploy(priceClawsEther, sgn2.address, uri_);
+  kaveu = await kaveu.deployed();
+  console.log("KaveuERC721 deployed to", kaveu.address);
 
   process.exit();
 }

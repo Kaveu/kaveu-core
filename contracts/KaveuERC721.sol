@@ -11,113 +11,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *
  * @author Rao Nagos
  * KaveuERC721 - Kaveu - KVU
- * Project URL : https://kaveu.io
+ * Repository URL : https://github.com/Kaveu/kaveu-core
+ * Website URL : https://kaveu.io
+ *
  * Kaveu is a project based on NFTs which are used as a key to be allowed to use an arbitration bot on CEXs/DEXs.
  * Each NFT has a basic `claws` to arbitrate 2 tokens on the C/DEXs. The `claws` can be borrowed from third parties if the owners allows it.
- * More info on the official website.
  *
  */
 contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
-    using Strings for uint256;
-
-    // The `MAX_SUPPLY` that can be mined
-    uint256 public constant MAX_SUPPLY = 5;
-    // The price of claw
-    uint256 public priceClaws;
-    // The safe address to withdraw or to sell tokens
-    address private _safeAddress;
-    // The `_baseUri` that stores the json file
-    string private _baseUri;
-
-    modifier existToken(uint256 tokenId) {
-        require(_exists(tokenId), "KaveuERC721: the token does not exist");
-        _;
-    }
-
-    constructor(
-        uint256 priceClaws_,
-        address safeAddress_,
-        string memory uri_
-    ) ERC721("Kaveu", "KVU") {
-        priceClaws = priceClaws_;
-        _safeAddress = safeAddress_;
-        _baseUri = uri_;
-
-        for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
-            Claw storage cl = _claws[id];
-            cl.totalClaw = id != 1 ? 2 : 721;
-            _mint(_safeAddress, id);
-        }
-    }
-
-    /**
-     * @dev Returns the `MAX_SUPPLY`.
-     */
-    function totalSupply() public pure returns (uint256) {
-        return MAX_SUPPLY;
-    }
-
-    /**
-     * @dev See {IERC721Metadata-tokenURI}.
-     */
-    function tokenURI(uint256 _tokenId) public view virtual override existToken(_tokenId) returns (string memory) {
-        return string(abi.encodePacked(_baseUri, _tokenId.toString(), ".json"));
-    }
-
-    /**
-     * @dev Returns the balance of the contract.
-     */
-    function balance() external view returns (uint256) {
-        return address(this).balance;
-    }
-
-    /**
-     * @dev Sets the `_baseUri` by the `_newUri`.
-     */
-    function setUri(string memory _newUri) external onlyOwner {
-        _baseUri = _newUri;
-    }
-
-    /**
-     * @dev Sets the `priceClaws` by the `_newPriceClaws`.
-     */
-    function setPriceClaws(uint256 _newPriceClaws) external onlyOwner {
-        priceClaws = _newPriceClaws;
-    }
-
-    /**
-     * @dev Increases by 4 owner claws.
-     */
-    function airdrop() external onlyOwner {
-        for (uint256 id = 2; id <= MAX_SUPPLY; id++) {
-            Claw storage cl = _claws[id];
-            cl.totalClaw += (7 - 2 - 1);
-        }
-    }
-
-    /**
-     * @dev See {Address-sendValue}.
-     */
-    function withdraw() external onlyOwner {
-        (bool success, ) = payable(_safeAddress).call{value: address(this).balance}("");
-        require(success, "Address: unable to send value");
-    }
-
-    /**
-     * @dev Increases claws of the token by `_incBy` by sending a minimum amount.
-     * The `sender` must be the `owner` of the token and the `_tokenId` must be greater than 1.
-     * Decreases claws does not exist.
-     */
-    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) {
-        require(msg.value >= _incBy * priceClaws && _tokenId > 1, "KaveuERC721: unable to increase the token");
-        Claw storage cl = _claws[_tokenId];
-        cl.totalClaw += _incBy;
-    }
-
-    /////////////////////////////////////////////////////////////////////
-    /////////////////////////// LOAN ////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////
-
     enum AssignState {
         DEFAULT,
         BY_OWNER,
@@ -141,17 +42,117 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     event ClawLoaning(uint256 indexed tokenId, uint256 indexed pricePerDay);
-    event ClawBorrowed(uint256 indexed tokenId, address indexed borrower);
+    event ClawBorrowed(uint256 indexed tokenId, address indexed borrower, uint256 indexed deadline);
 
-    uint256 constant DAY_IN_SECONDS = 86400;
+    // The `MAX_SUPPLY` that can be mined
+    uint256 public constant MAX_SUPPLY = 5;
+    // The price of claw
+    uint256 public priceClaws;
+    // The safe address to withdraw or to sell tokens
+    address private _safeAddress;
+    // The `_baseUri` that stores the json file
+    string private _baseUri;
+
+    // Map {Claw} by `tokenId`
     mapping(uint256 => Claw) private _claws;
+    // Map {BorrowData} by borrower address
     mapping(uint256 => mapping(address => BorrowData)) private _borrowers;
     address[] private _borrowerArray;
 
+    /**
+     * @dev See {ERC721-_exists}.
+     */
+    modifier existToken(uint256 tokenId) {
+        require(_exists(tokenId), "KaveuERC721: the token does not exist");
+        _;
+    }
+
+    /**
+     * @dev See {IERC721-ownerOf}.
+     */
     modifier onlyOwnerOf(uint256 tokenId) {
         require(ownerOf(tokenId) == msg.sender, "KaveuERC721: you are not the owner");
         _;
     }
+
+    constructor(
+        uint256 priceClaws_,
+        address safeAddress_,
+        string memory uri_
+    ) ERC721("Kaveu", "KVU") {
+        priceClaws = priceClaws_;
+        _safeAddress = safeAddress_;
+        _baseUri = uri_;
+
+        for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
+            _claws[id].totalClaw = id > 1 ? 2 : 721;
+            _mint(_safeAddress, id);
+        }
+    }
+
+    /**
+     * @dev Returns the `MAX_SUPPLY`.
+     */
+    function totalSupply() public pure returns (uint256) {
+        return MAX_SUPPLY;
+    }
+
+    /**
+     * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 _tokenId) public view virtual override existToken(_tokenId) returns (string memory) {
+        return string(abi.encodePacked(_baseUri, Strings.toString(_tokenId), ".json"));
+    }
+
+    /**
+     * @dev Returns the balance of the contract.
+     */
+    function balance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    /**
+     * Send the contract balance to `_safeAddress`.
+     */
+    function withdraw() external {
+        (bool success, ) = payable(_safeAddress).call{value: address(this).balance}("");
+        require(success, "Address: unable to send value");
+    }
+
+    /**
+     * @dev Sets the `_baseUri` by the `_newUri`.
+     */
+    function setUri(string memory _newUri) external onlyOwner {
+        _baseUri = _newUri;
+    }
+
+    /**
+     * @dev Sets the `priceClaws` by the `_newPriceClaws`.
+     */
+    function setPriceClaws(uint256 _newPriceClaws) external onlyOwner {
+        priceClaws = _newPriceClaws;
+    }
+
+    /**
+     * @dev Increases by 4 owner claws.
+     */
+    function airdrop() external onlyOwner {
+        for (uint256 id = 2; id <= MAX_SUPPLY; id++) _claws[id].totalClaw += (7 - 2 - 1);
+    }
+
+    /**
+     * @dev Increases claws of the `_tokenId` by `_incBy` by sending a minimum amount.
+     * The `sender` must be the `owner` of the token and the `_tokenId` must be greater than 1.
+     * Decreases claws does not exist.
+     */
+    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) {
+        require(msg.value >= _incBy * priceClaws && _tokenId > 1, "KaveuERC721: unable to increase the token");
+        _claws[_tokenId].totalClaw += _incBy;
+    }
+
+    /////////////////////////////////////////////////////////////////////
+    /////////////////////////// LOAN ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////
 
     /**
      * @dev Returns the {Claw} of the `_tokenId`.
@@ -161,33 +162,36 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
-     * @dev Returns all {BorrowData} for a `_tokenId`. The bot uses this function to check if a borrower is allowed to use the bot.
-     * More info on website.
+     * @dev Returns all {BorrowData} for a `_tokenId` and the size of not null {BorrowData}.
+     * The bot uses this function to check if a borrower is allowed to use the bot.
      */
-    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (BorrowData[] memory) {
+    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (BorrowData[] memory, uint256) {
         uint256 ln = _borrowerArray.length;
         uint256 cbsIndex = 0;
-        uint256 i = 0;
         BorrowData[] memory cbs = new BorrowData[](ln);
-        for (i = 0; i < ln; i++) {
+        for (uint256 i = 0; i < ln; i++) {
             BorrowData memory cb = _borrowers[_tokenId][_borrowerArray[i]];
             if (cb.assignState != AssignState.DEFAULT) {
                 cbs[cbsIndex] = cb;
                 cbsIndex++;
             }
         }
-        for (i = cbsIndex; i < ln; i++) cbs.pop();
-        return cbs;
+        return (cbs, cbsIndex);
     }
 
+    /**
+     * @dev Removes `index` borrower from the array by calling the pop() function.
+     * In fine : this will decrease the array length by 1.
+     */
     function removeBorrower(uint256 index) private {
         _borrowerArray[index] = _borrowerArray[_borrowerArray.length - 1];
         _borrowerArray.pop();
     }
 
     /**
-     * @dev Manually assigns a `_borrower` once to the `_tokenId` without paying the loan fee.
-     * More info on website.
+     * @dev Manually assigns a `_borrower` once to the `_tokenId` for 721 years and without paying the loan fee.
+     *
+     * This emits the {ClawBorrowed} event.
      */
     function assign(
         uint256 _tokenId,
@@ -200,7 +204,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
 
         require(cl.totalAssign <= cl.totalClaw && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot assign the borrower");
 
-        cb.deadline = block.timestamp + (31536000 * 721); // forever
+        cb.deadline = block.timestamp + (31536000 * 721); // 31536000 YEAR_IN_SECONDS
         cb.assignState = AssignState.BY_OWNER;
         cb.caller = msg.sender;
         cb.borrower = _borrower;
@@ -209,7 +213,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         _borrowers[_tokenId][_borrower] = cb;
         _borrowerArray.push(_borrower);
 
-        emit ClawBorrowed(_tokenId, _borrower);
+        emit ClawBorrowed(_tokenId, _borrower, cb.deadline);
     }
 
     /**
@@ -220,11 +224,10 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         uint256 _forClaw,
         address _borrower
     ) external onlyOwnerOf(_tokenId) {
-        BorrowData memory cb = _borrowers[_tokenId][_borrower];
         Claw storage cl = _claws[_tokenId];
         cl.totalAssign -= _forClaw;
 
-        require(cb.assignState == AssignState.BY_OWNER, "KaveuERC721: cannot deassign the borrower");
+        require(_borrowers[_tokenId][_borrower].assignState == AssignState.BY_OWNER, "KaveuERC721: cannot deassign the borrower");
 
         if (cl.totalAssign == 0) {
             // clear
@@ -239,11 +242,13 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
-     * @dev Create a loan for a `_tokenId` by setting a `_pricePerDay` and the maximum claws available. To stop the loan, set the `_pricePerDay` to 0 but this does not stop the current rentals.
+     * @dev Create a loan for a `_tokenId` by setting a `_pricePerDay` and the maximum claws available.
+     * To stop the loan, set the `_pricePerDay` to 0 but this does not stop the current rentals.
+     *
+     * This emits {ClawLoaning} event.
      */
     function loan(uint256 _tokenId, uint256 _pricePerDay) external onlyOwnerOf(_tokenId) {
-        Claw storage cl = _claws[_tokenId];
-        cl.pricePerDay = _pricePerDay;
+        _claws[_tokenId].pricePerDay = _pricePerDay;
 
         emit ClawLoaning(_tokenId, _pricePerDay);
     }
@@ -251,6 +256,8 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Create a borrow for a `_tokenId` by sending a minimum amount. Borrow until `_forDays` + `block.timestamp`.
      * If the owner of the `_tokenId` wants to sell it, he will have to pay back (BorrowData.totalAmount) the `BorrowData.caller` completely first, not for the days remaining.
+     *
+     * This emits the {ClawBorrowed} event.
      *
      * See {loan} to stop it.
      * See {_beforeTokenTransfer} to check the refunds.
@@ -267,7 +274,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
 
         require(cl.pricePerDay > 0 && cl.totalBorrow <= cl.totalClaw && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot borrow");
 
-        cb.deadline = block.timestamp + (_forDays * DAY_IN_SECONDS);
+        cb.deadline = block.timestamp + (_forDays * 86400); // 86400 DAY_IN_SECONDS
         cb.totalAmount = _forClaw * _forDays * cl.pricePerDay;
         cb.totalBorrow = _forClaw;
         cb.caller = msg.sender;
@@ -283,7 +290,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         (bool success, ) = payable(ownerOf(_tokenId)).call{value: msg.value}("");
         require(success, "Address: unable to send value");
 
-        emit ClawBorrowed(_tokenId, _borrower);
+        emit ClawBorrowed(_tokenId, _borrower, cb.deadline);
     }
 
     /**
@@ -311,8 +318,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
 
     /**
      * @dev Check that there are no refunds to be made prior to the transfer. If there is, a refund is required to the `BorrowData.caller` for `BorrowData.totalAmount`, not for the days remaining.
-     *  It is recommended to call the {clear} function first.
-     * More info on website.
+     * !! It is recommended to call the {clear} function first.
      */
     function _beforeTokenTransfer(
         address from,
