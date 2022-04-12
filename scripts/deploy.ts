@@ -6,6 +6,8 @@ import { utils } from "ethers";
 const uri_ = "ipfs://" + process.env["CID"] + "/";
 const priceClawsEther = utils.parseEther("0.001");
 
+// sgn2 = 0x8aab67ec7De4bCb41dc67Cfd9CDf3d0267933b61
+
 async function main() {
   const [sgn1, sgn2] = await ethers.getSigners();
 
@@ -15,6 +17,9 @@ async function main() {
   let kaveu = await KaveuERC721.deploy(priceClawsEther, sgn2.address, uri_);
   kaveu = await kaveu.deployed();
   console.log("KaveuERC721 deployed to", kaveu.address);
+
+  // run to verify
+  // yarn hardhat verify [kaveu.address] [utils.parseEther("0.001")] "[sgn2.address]" "ipfs://[process.env.CID]/"
 
   process.exit();
 }
