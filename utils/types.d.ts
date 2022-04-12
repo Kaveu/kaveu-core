@@ -20,4 +20,5 @@ export type Claw = {
   totalBorrow: BigNumber;
   totalAssign: BigNumber;
   totalClaw: BigNumber;
+  priceClaw: BigNumber;
 };

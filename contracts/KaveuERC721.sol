@@ -39,21 +39,20 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         uint256 totalBorrow;
         uint256 totalAssign;
         uint256 totalClaw;
+        uint256 priceClaw;
     }
 
     event ClawLoaning(uint256 indexed tokenId, uint256 indexed pricePerDay);
     event ClawBorrowed(uint256 indexed tokenId, address indexed borrower, uint256 indexed deadline);
 
-    // The `MAX_SUPPLY` that can be mined
+    // The maximum supply that can be mined
     uint256 public constant MAX_SUPPLY = 5;
-    // The price of claw
-    uint256 public priceClaws;
     // The safe address to withdraw or to sell tokens
     address private _safeAddress;
-    // The `_baseUri` that stores the json file
+    // The base uri that stores the json file
     string private _baseUri;
 
-    // Map {Claw} by `tokenId`
+    // Map {Claw} by the id of token
     mapping(uint256 => Claw) private _claws;
     // Map {BorrowData} by borrower address
     mapping(uint256 => mapping(address => BorrowData)) private _borrowers;
@@ -81,17 +80,20 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         _;
     }
 
-    constructor(
-        uint256 priceClaws_,
-        address safeAddress_,
-        string memory uri_
-    ) ERC721("Kaveu", "KVU") {
-        priceClaws = priceClaws_;
+    /**
+     * @dev Set the {Claw.priceClaw} to 0.0001 ether (starting price) and {Claw.totalClaw} to 2.
+     * Set the {_baseUri} and the {_safeAddress}.
+     *
+     * @param safeAddress_ The safe address of deployer
+     * @param uri_ The CID of ipfs url
+     */
+    constructor(address safeAddress_, string memory uri_) ERC721("Kaveu", "KVU") {
         _safeAddress = safeAddress_;
         _baseUri = uri_;
 
         for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
-            _claws[id].totalClaw = id > 1 ? 2 : 721; // This one should never be sold
+            _claws[id].totalClaw = id > 1 ? 2 : 721; // The one should never be sold
+            _claws[id].priceClaw = 0.0001 ether;
             _mint(_safeAddress, id);
         }
     }
@@ -139,33 +141,33 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
-     * @dev Allows the deployer to set the {priceClaws} by the {_newPriceClaws}.
-     *
-     * @param _newPriceClaws The new {priceClaws}
-     */
-    function setPriceClaws(uint256 _newPriceClaws) external onlyOwner {
-        priceClaws = _newPriceClaws;
-    }
-
-    /**
-     * @dev Allows the deployer to increase by 4, all owner claws except the id 1.
-     */
-    function airdrop() external onlyOwner {
-        for (uint256 id = 2; id <= MAX_SUPPLY; id++) _claws[id].totalClaw += (7 - 2 - 1);
-    }
-
-    /**
      * @dev Allows the owner to increase claws of the {_tokenId} by {_incBy} by sending a minimum amount.
+     * The {Claw.priceClaw} is updated according to the formula: {Claw.totalClaw} * 1,7614 ether.
      * !! Decreases claws does not exist.
      *
-     * Throws if the {_tokenId} is less than 1 and if the {value} is less than the required amount. Considere calling priceClaws() first.
+     * Throws if the {_tokenId} is less than 1 and if the {value} is less than the required amount.
      *
      * @param _tokenId The id of the token
      * @param _incBy The number of claws to add
      */
     function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) {
-        require(msg.value >= _incBy * priceClaws && _tokenId > 1, "KaveuERC721: unable to increase the token");
+        require(msg.value >= _incBy * _claws[_tokenId].priceClaw && _tokenId > 1, "KaveuERC721: unable to increase the token");
         _claws[_tokenId].totalClaw += _incBy;
+        _claws[_tokenId].priceClaw = _claws[_tokenId].totalClaw * 138696.25 gwei; // 1,7614 = 12,7 / 7,21
+    }
+
+    /**
+     * @dev Allows the deployer to increase by 4, all owner claws except the id one.
+     * This function affects the {increaseClaws} function.
+     *
+     * Throws if done twice.
+     */
+    bool public airdropReached = false;
+
+    function airdrop() external onlyOwner {
+        require(airdropReached == false, "KaveuERC721: unable to make an airdrop");
+        for (uint256 id = 2; id <= MAX_SUPPLY; id++) _claws[id].totalClaw += (7 - 2 - 1);
+        airdropReached = true;
     }
 
     /////////////////////////////////////////////////////////////////////

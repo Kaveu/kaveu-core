@@ -9,7 +9,6 @@ import { Claw } from "./../utils/types.d";
 import { TransactionResponse } from "@ethersproject/abstract-provider";
 
 const uri_ = "ipfs://" + process.env["CID"] + "/";
-const priceClawsEther = utils.parseEther("0.001");
 
 use(solidity);
 
@@ -27,44 +26,39 @@ describe("Test Contract KaveuERC721", function () {
     // deploy section
     // console.log("KaveuERC721 ready to deploy by", sgn1.address);
     // const KaveuERC721 = await ethers.getContractFactory("KaveuERC721", sgn1);
-    // kaveu = await KaveuERC721.deploy(priceClawsEther, sgn2.address, uri_);
+    // kaveu = await KaveuERC721.deploy(sgn2.address, uri_);
     // kaveu = await kaveu.deployed();
     // console.log("KaveuERC721 deployed to", kaveu.address);
+    // console.log("The owner tokens is", sgn2.address);
 
     // or use the already deployed contract
-    kaveu = await ethers.getContractAt("KaveuERC721", "0xa51Cc2A999048F0725986519A72dA412Eb80e04c", sgn1);
+    kaveu = await ethers.getContractAt("KaveuERC721", "0xbEfFdEbA7bA6AE115d130A1856965d82a496c9CA", sgn1);
     kaveu2 = await ethers.getContractAt("KaveuERC721", kaveu.address, sgn2);
   });
 
-  describe("name, symbol & priceClaws", async () => {
+  describe.skip("already testing", async () => {
     it("name", async () => {
       expect(await kaveu.name()).to.equal("Kaveu");
     });
     it("symbol", async () => {
       expect(await kaveu.symbol()).to.equal("KVU");
     });
-    it("priceClaws", async () => {
-      expect(await kaveu.priceClaws()).to.equal(priceClawsEther);
+
+    it("clawsOf", async () => {
+      expect(await kaveu.clawsOf(1))
+        .to.have.property("totalClaw")
+        .to.equal(721);
+      expect(await kaveu.clawsOf(2))
+        .to.have.property("totalClaw")
+        .to.gte(BigNumber.from(2));
+      expect(await kaveu.clawsOf(5))
+        .to.have.property("totalClaw")
+        .to.gte(2);
+
+      await expect(kaveu.clawsOf(0)).to.be.revertedWith("KaveuERC721: the token does not exist");
+      await expect(kaveu.clawsOf(35)).to.be.revertedWith("KaveuERC721: the token does not exist");
     });
-  });
 
-  it("clawsOf", async () => {
-    // the id start at 1 and the MAX_SUPPLY is equal to 5
-    expect(await kaveu.clawsOf(1))
-      .to.have.property("totalClaw")
-      .to.equal(721);
-    expect(await kaveu.clawsOf(2))
-      .to.have.property("totalClaw")
-      .to.equal(2);
-    expect(await kaveu.clawsOf(5))
-      .to.have.property("totalClaw")
-      .to.equal(2);
-
-    await expect(kaveu.clawsOf(0)).to.be.revertedWith("KaveuERC721: the token does not exist");
-    await expect(kaveu.clawsOf(35)).to.be.revertedWith("KaveuERC721: the token does not exist");
-  });
-
-  describe("tokenURI & setUri", async () => {
     it("tokenURI", async () => {
       // baseURI is uri_
       expect(await kaveu.tokenURI(1)).to.equal(uri_ + "1.json");
@@ -82,65 +76,55 @@ describe("Test Contract KaveuERC721", function () {
       await tx.wait(2);
       expect(await kaveu.tokenURI(5)).to.equal(uri_ + "5.json");
     });
-  });
 
-  it("setPriceClaws", async () => {
-    await expect(kaveu2.setPriceClaws(utils.parseEther("10"))).to.be.revertedWith("Ownable: caller is not the owner");
+    it("increaseClaws", async () => {
+      let clawsOf2: Claw = await kaveu.clawsOf(2);
+      const incBy_ = BigNumber.from("2");
+      const requireAmount = clawsOf2.priceClaw.mul(incBy_);
+      const nextTotalClaw = incBy_.add(clawsOf2.totalClaw);
+      const nextPriceClaw = nextTotalClaw.mul(utils.parseUnits("138696.25", "gwei"));
 
-    let tx: TransactionResponse = await kaveu.setPriceClaws(utils.parseEther("10"));
-    await tx.wait(2);
-    expect(await kaveu.priceClaws()).to.equal(utils.parseEther("10"));
-    tx = await kaveu.setPriceClaws(priceClawsEther);
-    await tx.wait(2);
-    expect(await kaveu.priceClaws()).to.equal(priceClawsEther);
-  });
+      await expect(kaveu.increaseClaws(2, incBy_, { value: requireAmount })).to.be.revertedWith("KaveuERC721: you are not the owner");
+      await expect(kaveu2.increaseClaws(1, incBy_, { value: requireAmount })).to.be.revertedWith("KaveuERC721: unable to increase the token");
 
-  it.skip("airdrop", async () => {
-    await expect(kaveu2.airdrop()).to.be.revertedWith("Ownable: caller is not the owner");
-
-    const clawsOf2: Claw = await kaveu.clawsOf(2);
-    const clawsOf5: Claw = await kaveu.clawsOf(5);
-
-    let tx: TransactionResponse = await kaveu.airdrop();
-    await tx.wait(2);
-    expect(await kaveu.clawsOf(1))
-      .to.have.property("totalClaw")
-      .to.equal(721);
-    expect(await kaveu.clawsOf(2))
-      .to.have.property("totalClaw")
-      .to.gt(clawsOf2.totalClaw.toNumber());
-    const airdropFor = 7 - 2 - 1;
-    expect(await kaveu.clawsOf(5))
-      .to.have.property("totalClaw")
-      .to.equal(clawsOf5.totalClaw.add(BigNumber.from(airdropFor)).toNumber());
-  });
-
-  describe.skip("increase & withdraw", async () => {
-    it.skip("increaseClaws", async () => {
-      const priceClaws: BigNumber = await kaveu.priceClaws();
-      const incBy_ = BigNumber.from(2);
-      const totalCost = priceClaws.mul(incBy_);
-      const clawsOf2: Claw = await kaveu.clawsOf(2);
-
-      await expect(kaveu.increaseClaws(2, incBy_, { value: totalCost })).to.be.revertedWith("KaveuERC721: you are not the owner");
-      await expect(kaveu2.increaseClaws(1, incBy_, { value: totalCost })).to.be.revertedWith("KaveuERC721: unable to increase the token");
-
-      let tx: TransactionResponse = await kaveu2.increaseClaws(2, incBy_, { value: totalCost });
+      let tx: TransactionResponse = await kaveu2.increaseClaws(2, incBy_, { value: requireAmount });
       await tx.wait(2);
-      expect(await kaveu.clawsOf(2))
-        .to.have.property("totalClaw")
-        .to.equal(incBy_.add(clawsOf2.totalClaw));
+      clawsOf2 = await kaveu.clawsOf(2);
+      expect(clawsOf2).to.have.property("totalClaw").to.equal(nextTotalClaw);
+      expect(clawsOf2).to.have.property("priceClaw").to.equal(nextPriceClaw);
     });
 
-    it.skip("withdraw", async () => {
+    it("airdrop", async () => {
+      await expect(kaveu2.airdrop()).to.be.revertedWith("Ownable: caller is not the owner");
+
+      const clawsOf2: Claw = await kaveu.clawsOf(2);
+      const clawsOf5: Claw = await kaveu.clawsOf(5);
+
+      let tx: TransactionResponse = await kaveu.airdrop();
+      await tx.wait(2);
+      expect(await kaveu.clawsOf(1))
+        .to.have.property("totalClaw")
+        .to.equal(721);
+      expect(await kaveu.clawsOf(2))
+        .to.have.property("totalClaw")
+        .to.gt(clawsOf2.totalClaw);
+      const airdropFor = 7 - 2 - 1;
+      expect(await kaveu.clawsOf(5))
+        .to.have.property("totalClaw")
+        .to.equal(clawsOf5.totalClaw.add(BigNumber.from(airdropFor)));
+    });
+
+    it("withdraw", async () => {
       let balanceOfSigner: BigNumber = await sgn2.getBalance();
       let balanceOfKaveu: BigNumber = await kaveu.balance();
       console.log("before", balanceOfKaveu.toString(), balanceOfSigner.toString());
 
       await expect(kaveu2.withdraw()).to.be.revertedWith("Ownable: caller is not the owner");
-      let tx: TransactionResponse = await kaveu.withdraw();
-      await tx.wait(2);
-      expect(await sgn2.getBalance()).to.gt(balanceOfSigner);
+      if (balanceOfKaveu.gt(BigNumber.from("0"))) {
+        let tx: TransactionResponse = await kaveu.withdraw();
+        await tx.wait(2);
+        expect(await sgn2.getBalance()).to.gt(balanceOfSigner);
+      }
 
       balanceOfKaveu = await kaveu.balance();
       balanceOfSigner = await sgn2.getBalance();
