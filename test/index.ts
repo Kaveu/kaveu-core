@@ -5,7 +5,7 @@ import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { utils, Contract, BigNumber } from "ethers";
-import { Claw, BorrowData } from "./../utils/types.d";
+import { Claw } from "./../utils/types.d";
 import { TransactionResponse } from "@ethersproject/abstract-provider";
 
 const uri_ = "ipfs://" + process.env["CID"] + "/";
@@ -22,7 +22,16 @@ describe("Test Contract KaveuERC721", function () {
   this.timeout(100 * 10 ** 3);
 
   before(async () => {
-    [sgn1, sgn2] = await ethers.getSigners();    // or use deployed contract
+    [sgn1, sgn2] = await ethers.getSigners(); // or use deployed contract
+
+    // deploy section
+    // console.log("KaveuERC721 ready to deploy by", sgn1.address);
+    // const KaveuERC721 = await ethers.getContractFactory("KaveuERC721", sgn1);
+    // kaveu = await KaveuERC721.deploy(priceClawsEther, sgn2.address, uri_);
+    // kaveu = await kaveu.deployed();
+    // console.log("KaveuERC721 deployed to", kaveu.address);
+
+    // or use the already deployed contract
     kaveu = await ethers.getContractAt("KaveuERC721", "0xa51Cc2A999048F0725986519A72dA412Eb80e04c", sgn1);
     kaveu2 = await ethers.getContractAt("KaveuERC721", kaveu.address, sgn2);
   });
