@@ -8,19 +8,19 @@ This has been created using the `hardhat init`.
 yarn
 ```
 
-## Compile contracts
+## Compile the contract
 
 ```bash
 yarn compile
 ```
 
-## Deploy contracts
+## Deploy the contract
 
 ```bash
 yarn deploy
 ```
 
-## Deploy contracts
+## Test the contract
 
 First copy/paste the address of the contract to the test script or uncomment the deploy section `before()`.
 
