@@ -16,7 +16,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *
  * Kaveu is a project based on NFTs which are used as a key to be allowed to use an arbitration bot (IA) on CEXs/DEXs.
  * Each NFT has a basic `claws` to arbitrate 2 tokens on the C/DEXs. The same `claws` can be borrowed from third parties if the owners allows it.
- *
  */
 contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     enum AssignState {
@@ -110,7 +109,6 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      *
      * @param _tokenId The id of the token
      * @return uri The uri token of {_tokenId}
-     *
      */
     function tokenURI(uint256 _tokenId) public view virtual override existToken(_tokenId) returns (string memory) {
         return string(abi.encodePacked(_baseUri, Strings.toString(_tokenId), ".json"));
@@ -187,20 +185,28 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      *
      * @param _tokenId The id of the token
      * @return borrowDatas An array of {BorrowData} of the {_tokenId}
-     * @return size The size of not null `borrowDatas`
      */
-    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (BorrowData[] memory, uint256) {
+    function borrowOf(uint256 _tokenId) external view existToken(_tokenId) returns (BorrowData[] memory) {
         uint256 ln = _borrowerArray.length;
-        uint256 cbsIndex = 0;
+        if (ln == 0) return new BorrowData[](ln);
+        uint256 cbsIndex;
+        uint256 i;
         BorrowData[] memory cbs = new BorrowData[](ln);
-        for (uint256 i = 0; i < ln; i++) {
+        for (i = 0; i < ln; i++) {
             BorrowData memory cb = _borrowers[_tokenId][_borrowerArray[i]];
             if (cb.assignState != AssignState.DEFAULT) {
                 cbs[cbsIndex] = cb;
                 cbsIndex++;
             }
         }
-        return (cbs, cbsIndex);
+        // use assembly to decrease the size for null data (by null, it means AssignState.DEFAULT)
+        // the first 'if' above makes the following code safe
+        for (i = cbsIndex; i < ln; i++)
+            assembly {
+                mstore(cbs, sub(mload(cbs), 1))
+            }
+
+        return cbs;
     }
 
     /**
@@ -267,7 +273,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         address _borrower
     ) external onlyOwnerOf(_tokenId) {
         Claw storage cl = _claws[_tokenId];
-        cl.totalAssign -= _forClaw;
+        cl.totalAssign -= _forClaw; // reverting on overflow
 
         require(_borrowers[_tokenId][_borrower].assignState == AssignState.BY_OWNER, "KaveuERC721: cannot deassign the borrower");
 
@@ -305,7 +311,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * See {loan} to stop it.
      * See {_beforeTokenTransfer} to check the refunds.
      *
-     * Throws if {Claw.pricePerDay} of the {_tokenId} is 0.
+     * Throws if {Claw.pricePerDay} of the {_tokenId} or {_forDays} is 0.
      * Throws if the {Claw.totalAssign} is greater than the {Claw.totalClaw}.
      * Throws if {BorrowData.assignState} is not an {AssignState.DEFAULT}.
      * And throws if the {value} is less than the required amount.
@@ -316,7 +322,6 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * @param _forClaw The number of claws the caller wants to borrow
      * @param _forDays The number of days the caller wants to borrow
      * @param _borrower The address of the borrower
-     *
      */
     function borrow(
         uint256 _tokenId,
@@ -328,7 +333,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         cl.totalBorrow += _forClaw;
         BorrowData memory cb = _borrowers[_tokenId][_borrower];
 
-        require(cl.pricePerDay > 0 && cl.totalBorrow <= cl.totalClaw && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot borrow");
+        require(cl.pricePerDay > 0 && _forDays > 0 && cl.totalBorrow <= cl.totalClaw && cb.assignState == AssignState.DEFAULT, "KaveuERC721: cannot borrow");
 
         cb.deadline = block.timestamp + (_forDays * 86400); // 86400 DAY_IN_SECONDS
         cb.totalAmount = _forClaw * _forDays * cl.pricePerDay;

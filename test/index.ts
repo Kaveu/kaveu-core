@@ -4,8 +4,8 @@ import { expect, use } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { utils, Contract, BigNumber } from "ethers";
-import { Claw } from "./../utils/types.d";
+import { utils, Contract, BigNumber, Wallet } from "ethers";
+import { Claw, BorrowData } from "./../utils/types.d";
 import { TransactionResponse } from "@ethersproject/abstract-provider";
 
 const uri_ = "ipfs://" + process.env["CID"] + "/";
@@ -32,7 +32,7 @@ describe("Test Contract KaveuERC721", function () {
     // console.log("The owner tokens is", sgn2.address);
 
     // or use the already deployed contract
-    kaveu = await ethers.getContractAt("KaveuERC721", "0xbEfFdEbA7bA6AE115d130A1856965d82a496c9CA", sgn1);
+    kaveu = await ethers.getContractAt("KaveuERC721", "0xd8f88B947E94A0702f1f2a4EAbfb2F8344221d15", sgn1);
     kaveu2 = await ethers.getContractAt("KaveuERC721", kaveu.address, sgn2);
   });
 
@@ -120,15 +120,18 @@ describe("Test Contract KaveuERC721", function () {
       console.log("before", balanceOfKaveu.toString(), balanceOfSigner.toString());
 
       await expect(kaveu2.withdraw()).to.be.revertedWith("Ownable: caller is not the owner");
+
       if (balanceOfKaveu.gt(BigNumber.from("0"))) {
         let tx: TransactionResponse = await kaveu.withdraw();
         await tx.wait(2);
-        expect(await sgn2.getBalance()).to.gt(balanceOfSigner);
-      }
 
-      balanceOfKaveu = await kaveu.balance();
-      balanceOfSigner = await sgn2.getBalance();
-      console.log("after", balanceOfKaveu.toString(), balanceOfSigner.toString());
+        expect(await sgn2.getBalance()).to.gt(balanceOfSigner);
+        expect(await kaveu.balance()).to.equal(0);
+
+        balanceOfKaveu = await kaveu.balance();
+        balanceOfSigner = await sgn2.getBalance();
+        console.log("after", balanceOfKaveu.toString(), balanceOfSigner.toString());
+      }
     });
   });
 
@@ -136,69 +139,56 @@ describe("Test Contract KaveuERC721", function () {
   /////////////////////////// LOAN ////////////////////////////////////
   /////////////////////////////////////////////////////////////////////
 
-  describe.skip("loan section", async () => {
-    it.skip("claws", async () => {
-      const totalSupply: BigNumber = await kaveu.totalSupply();
-      const claws: Array<Claw> = await kaveu.claws();
+  describe("loan section", async () => {
+    const wallets = new Array<Wallet>(4);
+    for (let index = 0; index < wallets.length; index++) wallets[index] = Wallet.fromMnemonic("announce room limb pattern dry unit scale effort smooth jazz weasel alcohol", `m/44'/60'/0'/0/${index}`);
 
-      expect(claws).to.have.lengthOf(totalSupply.toNumber());
-    });
+    let tx: TransactionResponse;
 
-    it.skip("assign & deassign", async () => {
-      const clawsOf2: BigNumber = await kaveu.clawsOf(2);
+    const fn_assign = async (start_id?: number, quantity?: number) => {
+      const id = start_id || 2;
+      const forClaw = quantity || 1;
+      if (id < 2 || id > 5) return;
+      tx = await kaveu2.assign(id, forClaw, wallets[id - 2].address); // assign 1 claw
+      await tx.wait(2);
 
+      await fn_assign(id + 1, forClaw);
+    };
+
+    const fn_deassign = async (start_id?: number, quantity?: number) => {
+      const id = start_id || 2;
+      const forClaw = quantity || 1;
+      if (id < 2 || id > 5) return;
+      tx = await kaveu2.deassign(id, forClaw, wallets[id - 2].address); // assign 1 claw
+      await tx.wait(2);
+
+      await fn_deassign(id + 1, forClaw);
+    };
+
+    this.timeout(100 * 10 ** 3);
+
+    it("assign", async () => {
+      const { totalClaw: totalClawOf5 }: Claw = await kaveu.clawsOf(5);
       // function assign(uint256 _tokenId, uint256 _forClaw, address _borrower) external onlyOwnerOf(_tokenId)
-      await expect(kaveu.assign(2, clawsOf2.sub(BigNumber.from(1)), sgn2.address)).to.be.revertedWith("KaveuERC721: you are not the owner");
-      await expect(kaveu2.assign(2, clawsOf2.add(BigNumber.from(1)), sgn1.address)).to.be.revertedWith("KaveuERC721: cannot assign the borrower");
-
-      let tx: TransactionResponse;
-      // let borrowOf: Array<BorrowData>;
-
-      // borrowOf = await kaveu.borrowOf(2);
-      // console.log(borrowOf);
-      tx = await kaveu2.assign(2, 1, sgn1.address); // assign 1 claw
-      await tx.wait(2);
-
-      // borrowOf = await kaveu.borrowOf(2);
-      // console.log(borrowOf);
-      tx = await kaveu2.deassign(2, 1, sgn1.address);
-      await tx.wait(2);
-
-      ////////////////////////
-
-      // borrowOf = await kaveu.borrowOf(2);
-      // console.log(borrowOf);
-      tx = await kaveu2.assign(2, 2, sgn1.address); // assign 2 claws
-      await tx.wait(2);
-
-      // borrowOf = await kaveu.borrowOf(2);
-      // console.log(borrowOf);
-      tx = await kaveu2.deassign(2, 1, sgn1.address);
-      await tx.wait(2);
-
-      // borrowOf = await kaveu.borrowOf(2);
-      // console.log(borrowOf);
-      tx = await kaveu2.deassign(2, 1, sgn1.address);
-      await tx.wait(2);
-
-      // borrowOf = await kaveu.borrowOf(2);
-      // console.log(borrowOf);
+      await expect(kaveu.assign(5, totalClawOf5.sub(BigNumber.from(1)), sgn2.address)).to.be.revertedWith("KaveuERC721: you are not the owner");
+      await expect(kaveu2.assign(5, totalClawOf5.add(BigNumber.from(1)), sgn1.address)).to.be.revertedWith("KaveuERC721: cannot assign the borrower");
+      await fn_assign(2);
     });
 
-    it.skip("loan", async () => {
-      const pricePerDay = utils.parseEther("0.01");
-      const tokenId = 2;
-      let claws: Array<Claw> = await kaveu.claws();
-      console.log(claws[tokenId - 1]);
+    // it("borrowOf", async () => {
+    //   const borrowDataPromises: Array<Promise<Array<BorrowData>>> = [kaveu2.borrowOf(2), kaveu2.borrowOf(3), kaveu2.borrowOf(4), kaveu2.borrowOf(5)];
 
-      // function loan(uint256 _tokenId, uint256 _pricePerDay) external onlyOwnerOf(_tokenId)
-      await expect(kaveu.loan(tokenId, pricePerDay)).to.be.revertedWith("KaveuERC721: you are not the owner");
+    //   let i = 0;
+    //   for await (const data of borrowDataPromises) {
+    //     data.some((d) => d.borrower == wallets[i].address);
+    //     expect("");
+    //   }
+    // });
 
-      let tx: TransactionResponse;
-
-      tx = await kaveu2.loan(tokenId, pricePerDay);
-      claws = await kaveu.claws();
-      console.log(claws[tokenId - 1]);
+    it("deassign", async () => {
+      await expect(kaveu2.deassign(5, 1, sgn1.address)).to.be.revertedWith("KaveuERC721: cannot deassign the borrower");
+      // await expect(kaveu2.deassign(5, 721, sgn1.address)).to.be.revertedWith("");
+      await fn_deassign(2);
     });
   });
 });
