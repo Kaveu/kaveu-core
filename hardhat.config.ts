@@ -17,7 +17,7 @@ const mumbai = {
 };
 
 const polygon = {
-  chainId: 80001,
+  chainId: 137,
   url: process.env["HTTPS_POLYGON_MORALIS"] || "",
   accounts,
 };
@@ -33,7 +33,7 @@ const hreConfig: HardhatUserConfig = {
     },
   },
   defaultNetwork: "mumbai",
-  networks: { mumbai },
+  networks: { mumbai, polygon },
   etherscan: {
     apiKey: process.env["VERIFY_POLYGON_API_KEY"] || "",
   },
