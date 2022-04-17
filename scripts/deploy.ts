@@ -1,7 +1,6 @@
 import { config } from "dotenv";
 config();
 import { ethers } from "hardhat";
-import { utils } from "ethers";
 
 const uri_ = "ipfs://" + process.env["CID"] + "/";
 
