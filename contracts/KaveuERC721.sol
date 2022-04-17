@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * Kaveu is a project based on NFTs which are used as a key to be allowed to use an arbitration bot (IA) on CEXs/DEXs.
  * Each NFT has a basic `claws` to arbitrate 2 tokens on the C/DEXs. The same `claws` can be borrowed from third parties if the owners allows it.
  */
-contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
+contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     enum AssignState {
         DEFAULT,
         BY_OWNER,
@@ -47,7 +48,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     // The maximum supply that can be mined
     uint256 public constant MAX_SUPPLY = 5;
     // The safe address to withdraw or to sell tokens
-    address private _safeAddress;
+    address _safeAddress;
     // The base uri that stores the json file
     string private _baseUri;
 
@@ -124,7 +125,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     /**
      * @dev Allows the deployer to send the contract balance to the {_safeAddress}.
      */
-    function withdraw() external onlyOwner {
+    function withdraw() external onlyOwner nonReentrant {
         (bool success, ) = payable(_safeAddress).call{value: address(this).balance}("");
         require(success, "Address: unable to send value");
     }
@@ -148,7 +149,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * @param _tokenId The id of the token
      * @param _incBy The number of claws to add
      */
-    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) {
+    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) nonReentrant {
         require(msg.value >= _incBy * _claws[_tokenId].priceClaw && _tokenId > 1, "KaveuERC721: unable to increase the token");
         _claws[_tokenId].totalClaw += _incBy;
         _claws[_tokenId].priceClaw = _claws[_tokenId].totalClaw * 138696.25 gwei; // 1,7614 = 12,7 / 7,21
@@ -217,7 +218,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
      * @param _borrower The borrower to find
      * @return isBorrower
      */
-    function isBorrower(address _borrower) external view returns (bool) {
+    function isBorrower(address _borrower) public view returns (bool) {
         bool find = false;
         for (uint256 i = 0; i < _borrowerArray.length; i++)
             if (_borrowerArray[i] == _borrower) {
@@ -231,11 +232,10 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
 
     /**
      * ~ON-CHAIN~
-     * @dev The IA uses this function to check if a borrower is allowed to use it.
-     * Check to see if the borrower exists and if the loan is past due.
+     * @dev Calculates the number of claws the {_borrower} borrows.
      *
-     * @param _borrower The borrower to find
-     * @return isBorrower
+     * @param _borrower The borrower who borrows
+     * @return totalBorrowsOf
      */
     function totalBorrowsOf(address _borrower) external view returns (uint256) {
         uint256 total = 0;
@@ -362,7 +362,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         uint256 _forClaws,
         uint256 _forDays,
         address _borrower
-    ) external payable existToken(_tokenId) {
+    ) external payable existToken(_tokenId) nonReentrant {
         Claw memory cl = _claws[_tokenId];
         cl.totalBorrow += _forClaws;
         BorrowData memory cb = _borrowers[_tokenId][_borrower];
@@ -413,11 +413,34 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
     }
 
     /**
-     * @dev Call the hook to check that there are no refunds to be made prior to the transfer. If there is, a refund is required to the `BorrowData.caller` for `BorrowData.totalAmount`, not for the days remaining.
+     * @dev Check that there are no refunds to be made prior to the transfer. If there is, a refund is required to the `BorrowData.caller` for `BorrowData.totalAmount`, not for the days remaining.
      * !! It is recommended to call the {clear} function first.
      *
      * Throws if the {value} is less than the required amount.
      *
+     * @param _tokenId The id of the token
+     */
+    function refundBorrowers(uint256 _tokenId) external payable onlyOwnerOf(_tokenId) nonReentrant {
+        uint256 requiredAmount = 0;
+        for (uint256 i = 0; i < _borrowerArray.length; i++)
+            if (_borrowers[_tokenId][_borrowerArray[i]].assignState == AssignState.BY_BORROWER) requiredAmount += _borrowers[_tokenId][_borrowerArray[i]].totalAmount;
+
+        require(msg.value >= requiredAmount, "KaveuERC721: not enought token");
+
+        for (uint256 i = 0; i < _borrowerArray.length; i++) {
+            BorrowData memory cb = _borrowers[_tokenId][_borrowerArray[i]];
+            if (cb.assignState == AssignState.BY_BORROWER) {
+                // refunds the caller
+                (bool success, ) = payable(cb.caller).call{value: cb.totalAmount}("");
+                require(success, "Address: unable to send value");
+                // to clear()
+                cb.deadline = block.timestamp - 10;
+                _borrowers[_tokenId][_borrowerArray[i]] = cb;
+            }
+        }
+    }
+
+    /**
      * See {ERC721-_beforeTokenTransfer}.
      */
     function _beforeTokenTransfer(
@@ -428,17 +451,8 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable {
         super._beforeTokenTransfer(from, to, tokenId);
         // from _mint() or to _burn()
         if (from == address(0) || to == address(0)) return;
-
-        for (uint256 i = 0; i < _borrowerArray.length; i++) {
-            BorrowData memory cb = _borrowers[tokenId][_borrowerArray[i]];
-            if (cb.assignState == AssignState.BY_BORROWER) {
-                // refunds the caller
-                (bool success, ) = payable(cb.caller).call{value: cb.totalAmount}("");
-                require(success, "Address: unable to send value");
-                // to clear()
-                cb.deadline = block.timestamp - 10;
-                _borrowers[tokenId][_borrowerArray[i]] = cb;
-            }
-        }
+        for (uint256 i = 0; i < _borrowerArray.length; i++)
+            if (_borrowers[tokenId][_borrowerArray[i]].assignState == AssignState.BY_BORROWER && _borrowers[tokenId][_borrowerArray[i]].deadline > block.timestamp)
+                revert("KaveuERC721: refund borrowers first");
     }
 }
