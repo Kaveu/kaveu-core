@@ -63,7 +63,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     event ClawBorrowed(uint256 indexed tokenId, address indexed borrower, uint256 indexed deadline);
 
     // The maximum supply that can be mined
-    uint256 public constant MAX_SUPPLY = 5; // $ echo "7 ^ (2 * 1)" | bc
+    uint256 public constant MAX_SUPPLY = 49; // $ echo "7 ^ (2 * 1)" | bc
     // The safe address to withdraw or to sell tokens
     address public safeAddress;
     // The base uri that stores the json file
@@ -110,7 +110,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
 
         for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
             _claws[id].totalClaw = id > 1 ? 2 : 721; // The one should never be sold
-            _claws[id].priceClaw = 0.0001 ether; // matic: 18$ at april 17th 2022
+            _claws[id].priceClaw = 12.7 ether; // matic: 18$ at april 17th 2022
             _mint(safeAddress, id);
         }
     }
@@ -169,7 +169,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) nonReentrant {
         require(msg.value >= _incBy * _claws[_tokenId].priceClaw && _tokenId > 1, "KaveuERC721: unable to increase the token");
         _claws[_tokenId].totalClaw += _incBy;
-        _claws[_tokenId].priceClaw = _claws[_tokenId].totalClaw * 138696.25 gwei; // 5,7614 = (12,7 / 7,21) + (7 - 2 - 1)
+        _claws[_tokenId].priceClaw = _claws[_tokenId].totalClaw * 5.7614 ether; // 5,7614 = (12,7 / 7,21) + (7 - 2 - 1)
     }
 
     /**
