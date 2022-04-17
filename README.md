@@ -22,11 +22,15 @@ yarn deploy
 
 ## Test the contract
 
-First copy/paste the address of the contract to the test script or uncomment the deploy section `before()`.
-
 ```bash
 yarn test
 ```
+
+## Networks
+
+|Network name|Address|
+|------------|-------|
+|Mumbai|[0x18A56Ed2395eEE967529f3D9CA653c13013B27c2](https://mumbai.polygonscan.com/address/0x18A56Ed2395eEE967529f3D9CA653c13013B27c2#code "The contract code")|
 
 ## License
 
