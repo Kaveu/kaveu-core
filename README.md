@@ -2,6 +2,12 @@
 
 This has been created using the `hardhat init`.
 
+## Networks
+
+|Network name|Address|
+|-----|-----|
+|**Mumbai**|[0x18A56Ed2395eEE967529f3D9CA653c13013B27c2](https://mumbai.polygonscan.com/address/0x18A56Ed2395eEE967529f3D9CA653c13013B27c2#code "The contract code")|
+
 ## Installing
 
 ```bash
@@ -26,11 +32,8 @@ yarn deploy
 yarn test
 ```
 
-## Networks
-
-|Network name|Address|
-|------------|-------|
-|Mumbai|[0x18A56Ed2395eEE967529f3D9CA653c13013B27c2](https://mumbai.polygonscan.com/address/0x18A56Ed2395eEE967529f3D9CA653c13013B27c2#code "The contract code")|
+## Diagram
+![diagram](kaveu_diagram_v1.png)
 
 ## License
 
