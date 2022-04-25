@@ -63,7 +63,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     event ClawBorrowed(uint256 indexed tokenId, address indexed borrower, uint256 indexed deadline);
 
     // The maximum supply that can be mined
-    uint256 public constant MAX_SUPPLY = 49; // $ echo "7 ^ (2 * 1)" | bc
+    uint256 public constant MAX_SUPPLY = 15; // $ echo "(7 * 2) + 1" | bc
     // The safe address to withdraw or to sell tokens
     address public safeAddress;
     // The base uri that stores the json file
