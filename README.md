@@ -1,12 +1,16 @@
 # Kaveu core
 
 This has been created using the `hardhat init`.
+<p>
+  <img src="https://img.shields.io/badge/Test-passing-informational?style=flat&color=green&labelColor=gray"/>
+  <img src="https://img.shields.io/badge/Audit-going_on-informational?style=flat&color=orange&labelColor=gray"/>
+</p>
 
 ## Networks
 
 |Network name|Address|
 |-----|-----|
-|**Mumbai**|[0x18A56Ed2395eEE967529f3D9CA653c13013B27c2](https://mumbai.polygonscan.com/address/0x18A56Ed2395eEE967529f3D9CA653c13013B27c2#code "The contract code")|
+|**Mumbai**|[0xf46f27ca5D858103e7ad5D7dFd4556786010d2f8](https://mumbai.polygonscan.com/address/0xf46f27ca5D858103e7ad5D7dFd4556786010d2f8#code "The contract code")|
 
 ## Installing
 

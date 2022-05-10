@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -109,8 +110,8 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
         _baseUri = uri_;
 
         for (uint256 id = 1; id <= MAX_SUPPLY; id++) {
-            _claws[id].totalClaw = id > 1 ? 2 : 721; // The one should never be sold
-            _claws[id].priceClaw = 12.7 ether; // matic: 18$ at april 17th 2022
+            _claws[id].totalClaw = id > 1 ? 2 : 7; // The one should never be sold
+            _claws[id].priceClaw = 12.7 gwei; // 12.7 ether (matic): 18$ at april 17th 2022
             _mint(safeAddress, id);
         }
     }
@@ -133,6 +134,17 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Call once a time all the tokens uri.
+     *
+     * @return uris All tokens uri
+     */
+    function getTokenURIs() external view virtual returns (string[] memory) {
+        string[] memory uris = new string[](MAX_SUPPLY);
+        for (uint256 tokenId = 1; tokenId <= MAX_SUPPLY; tokenId++) uris[tokenId - 1] = tokenURI(tokenId);
+        return uris;
+    }
+
+    /**
      * @return balance The balance of the contract
      */
     function balance() external view returns (uint256) {
@@ -142,9 +154,18 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     /**
      * @dev Allows the deployer to send the contract balance to the {safeAddress}.
      */
-    function withdraw() external onlyOwner nonReentrant {
+    function withdraw() external virtual onlyOwner nonReentrant {
         (bool success, ) = payable(safeAddress).call{value: address(this).balance}("");
         require(success, "Address: unable to send value");
+    }
+
+    /**
+     * @dev Allow the deployer to set the {safeAddress} by the {_safeAddress}.
+     *
+     * @param _safeAddress The new safe address
+     */
+    function setSafeAddress(address _safeAddress) external virtual onlyOwner {
+        safeAddress = _safeAddress;
     }
 
     /**
@@ -152,7 +173,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
      *
      * @param _newUri The new {_baseUri}
      */
-    function setUri(string memory _newUri) external onlyOwner {
+    function setUri(string memory _newUri) external virtual onlyOwner {
         _baseUri = _newUri;
     }
 
@@ -166,24 +187,18 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
      * @param _tokenId The id of the token
      * @param _incBy The number of claws to add
      */
-    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable onlyOwnerOf(_tokenId) nonReentrant {
+    function increaseClaws(uint256 _tokenId, uint256 _incBy) external payable virtual onlyOwnerOf(_tokenId) nonReentrant {
         require(msg.value >= _incBy * _claws[_tokenId].priceClaw && _tokenId > 1, "KaveuERC721: unable to increase the token");
         _claws[_tokenId].totalClaw += _incBy;
-        _claws[_tokenId].priceClaw = _claws[_tokenId].totalClaw * 5.7614 ether; // 5,7614 = (12,7 / 7,21) + (7 - 2 - 1)
+        _claws[_tokenId].priceClaw = _claws[_tokenId].totalClaw * 5.7614 gwei; // 5,7614 = (12,7 / 7,21) + (7 - 2 - 1)
     }
 
     /**
      * @dev Allows the deployer to increase by 4, all owner claws except the id one.
      * This function affects the {increaseClaws} function.
-     *
-     * Throws if done twice.
      */
-    bool public airdropReached = false;
-
-    function airdrop() external onlyOwner {
-        require(airdropReached == false, "KaveuERC721: unable to make an airdrop");
+    function airdrop() external virtual onlyOwner {
         for (uint256 id = 2; id <= MAX_SUPPLY; id++) _claws[id].totalClaw += (7 - 2 - 1);
-        airdropReached = true;
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -287,7 +302,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _tokenId,
         uint256 _forClaws,
         address _borrower
-    ) external onlyOwnerOf(_tokenId) {
+    ) external virtual onlyOwnerOf(_tokenId) {
         BorrowData memory cb = _borrowers[_tokenId][_borrower];
         Claw memory cl = _claws[_tokenId];
         cl.totalAssign += _forClaws;
@@ -321,7 +336,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _tokenId,
         uint256 _forClaws,
         address _borrower
-    ) external onlyOwnerOf(_tokenId) {
+    ) external virtual onlyOwnerOf(_tokenId) {
         Claw storage cl = _claws[_tokenId];
         cl.totalAssign -= _forClaws; // reverting on overflow
 
@@ -346,7 +361,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
      * @param _tokenId The id of the token
      * @param _pricePerDay The price the caller wants to loan claws
      */
-    function loan(uint256 _tokenId, uint256 _pricePerDay) external onlyOwnerOf(_tokenId) {
+    function loan(uint256 _tokenId, uint256 _pricePerDay) external virtual onlyOwnerOf(_tokenId) {
         _claws[_tokenId].pricePerDay = _pricePerDay;
 
         emit ClawLoaning(_tokenId, _pricePerDay);
@@ -377,7 +392,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _forClaws,
         uint256 _forDays,
         address _borrower
-    ) external payable existToken(_tokenId) nonReentrant {
+    ) external payable virtual existToken(_tokenId) nonReentrant {
         Claw memory cl = _claws[_tokenId];
         cl.totalBorrow += _forClaws;
         BorrowData memory cb = _borrowers[_tokenId][_borrower];
@@ -406,7 +421,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
     /**
      * @dev Clears the data if the {BorrowData.deadline} has been reached. Anyone can call this function.
      */
-    function clear() external {
+    function clear() external virtual {
         uint256 ln = _borrowerArray.length;
         uint256[] memory array = new uint256[](ln);
         uint256 counter = 0;
@@ -446,7 +461,7 @@ contract KaveuERC721 is ERC721, ERC721Holder, Ownable, ReentrancyGuard {
      * Throws if the {value} is less than the required amount.
      *
      */
-    function refundBorrowers(uint256 _tokenId) external payable nonReentrant {
+    function refundBorrowers(uint256 _tokenId) external payable virtual nonReentrant {
         require(msg.value >= getAmountInToRefund(_tokenId), "KaveuERC721: not enought token");
 
         for (uint256 i = 0; i < _borrowerArray.length; i++) {

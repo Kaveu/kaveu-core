@@ -33,7 +33,7 @@ const hreConfig: HardhatUserConfig = {
     },
   },
   defaultNetwork: "mumbai",
-  networks: { mumbai, polygon },
+  networks: { mumbai },
   etherscan: {
     apiKey: process.env["VERIFY_POLYGON_API_KEY"] || "",
   },
