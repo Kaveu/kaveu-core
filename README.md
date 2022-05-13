@@ -8,9 +8,10 @@ This has been created using the `hardhat init`.
 
 ## Networks
 
-|Network name|Address|
-|-----|-----|
-|**Mumbai**|[0xf46f27ca5D858103e7ad5D7dFd4556786010d2f8](https://mumbai.polygonscan.com/address/0xf46f27ca5D858103e7ad5D7dFd4556786010d2f8#code "The contract code")|
+|Network name|Contract|Address|
+|-----|-----|-----|
+|**Mumbai**|KaveuERC721|[0xf46f27ca5D858103e7ad5D7dFd4556786010d2f8](https://mumbai.polygonscan.com/address/0xf46f27ca5D858103e7ad5D7dFd4556786010d2f8#code "The erc721 code")|
+|**Mumbai**|KaveuUtils|[0x9F20Dc0448E1c454936cE65BC12234c0F66CACFF](https://mumbai.polygonscan.com/address/0x9F20Dc0448E1c454936cE65BC12234c0F66CACFF#code "The utils code")|
 
 ## Installing
 

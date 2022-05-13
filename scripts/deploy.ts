@@ -19,6 +19,11 @@ async function main() {
   console.log("KaveuERC721 deployed to", kaveu.address)
   console.log("The owner tokens is", sgn2.address)
 
+  const KaveuUtils = await ethers.getContractFactory("KaveuUtils", sgn1)
+  let kUtils = await KaveuUtils.deploy(kaveu.address)
+  kUtils = await kUtils.deployed()
+  console.log("KaveuUtils deployed to", kUtils.address)
+
   // run to verify
   // yarn hardhat verify [kaveu.address] "[sgn2.address]" "ipfs://[process.env.CID]/"
 
